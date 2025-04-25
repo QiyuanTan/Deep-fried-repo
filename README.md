@@ -53,10 +53,10 @@ class State(TypedDict):
 ```mermaid
 flowchart TD
     START([Start])
-    Summarizer([Summarizer<br><sub>Extract Topics from Notes</sub>])
-    Generator([Generator<br><sub>Generate Question List</sub>])
-    Autograder([Autograder Generator<br><sub>Create Autograders for Code Questions</sub>])
-    Validator([Validator<br><sub>Validate Question</sub>])
+    Summarizer([Summarizer])
+    Generator([Generator])
+    Autograder([Autograder Generator])
+    Validator([Validator])
     END([End])
 
     START --> Summarizer
