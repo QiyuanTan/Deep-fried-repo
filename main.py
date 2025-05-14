@@ -1,11 +1,10 @@
 import json
-from http.client import responses
-from pydoc_data.topics import topics
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.constants import START
 from langgraph.graph import StateGraph
+import fitz
 
 from llm import get_llm
 from nodes.autograder_generator.autograder import build_autograder_node
@@ -18,6 +17,7 @@ llm = get_llm()
 graph_builder = StateGraph(State)
 
 def get_notes():
+    # TODO: get notes from the backend
     return ""
 
 def summarizer(state: State):
@@ -25,9 +25,14 @@ def summarizer(state: State):
     with open("summarizer_prompt.txt", "r") as f:
         prompt = f.read()
 
+    doc = fitz.open("somesyllabus.pdf") # TODO: get syllabus from the backend
+    text = "\n".join([page.get_text() for page in doc])
+
+
     messages = [
         SystemMessage(prompt),
-        HumanMessage(get_notes()),
+        SystemMessage(""),
+        HumanMessage(f"{get_notes()}"),
     ]
 
     response = llm.invoke(messages)
@@ -36,14 +41,34 @@ def summarizer(state: State):
     return {"messages": AIMessage("some additional comments about the notes_summary")}
 
 def generator(state: State):
+    with open("summarizer_prompt.txt", "r") as f:
+        prompt = f.read()
+
     if not state["curr_question_valid"]:
         # regenerate a single question
+        messages = [
+            SystemMessage(prompt),
+            HumanMessage(state["notes_summary"]),
+            AIMessage(state["questions"]),
+            SystemMessage(f"One of questions you generated is invalid. You need to regenerate it and format it as the following format:" # TODO: json format
+                          f". Here's the message form the validator: {state['messages'][-1].content}"),
+        ]
+        response = llm.invoke(messages)
+        question = json.loads(response.content)
 
+        state["questions"][state["current_index"]] = question
         state["curr_question_valid"] = True
         return {"messages": AIMessage(f"regenerated question {state['current_index']}")}
     else:
         # generate all questions
+        messages = [
+            SystemMessage(prompt),
+            HumanMessage(state["notes_summary"]),
+        ]
 
+        response = llm.invoke(messages)
+        question = json.loads(response.content)
+        state["questions"] = question
         return {"messages": AIMessage("generated all questions")}
 
 autograder_node = build_autograder_node(llm)
@@ -70,5 +95,6 @@ final_state = graph.invoke({
     "messages": [
     ]},
     {"recursion_limit": 1000})
+
 for message in final_state['messages']:
     print(message.content)
