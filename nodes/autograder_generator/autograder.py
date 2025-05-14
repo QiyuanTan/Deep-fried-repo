@@ -14,7 +14,7 @@ from utils.state import get_current_question, set_current_question
 
 
 # Load prompt from text file
-with open("prompts/autograder_prompt.txt", "r") as f:
+with open("autograder_prompt.txt", "r") as f:
     autograder_prompt = ChatPromptTemplate.from_template(f.read())
 
 

@@ -1,0 +1,6 @@
+langgraph~=0.3.34
+langchain-google-genai
+python-dotenv
+langchain-community~=0.3.22
+langchain-core~=0.3.56
+langchain-experimental~=0.3.4

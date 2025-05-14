@@ -19,7 +19,7 @@ class State(TypedDict):
     questions: list[Union[MCQ, CodeQuestion]]
     num_questions: int
     current_index: int
-    topics: list[str]
+    notes_summary: list[str]
     curr_question_valid: bool
     messages: Annotated[list, lambda x: x]  # Replace with actual logic
     __next__: str

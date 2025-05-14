@@ -51,7 +51,6 @@ def validateCode(question: dict) -> Tuple[bool, str]:
 
 
 
-@tool
 def validator(state: dict) -> dict:
     index = state["current_index"]
     question = state["questions"][index]  # Get current question

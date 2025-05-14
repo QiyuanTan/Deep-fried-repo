@@ -1,10 +1,9 @@
 # run_test.py
 
 import os
-import sys
 from dotenv import load_dotenv
 from state_types import State
-from nodes.autograder import build_autograder_node
+from nodes.autograder_generator.autograder import build_autograder_node
 from tests.test_autograder import run_autograder_script
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -36,7 +35,7 @@ def generate_autograder_script(question_data):
         "questions": [question_data],
         "num_questions": 1,
         "current_index": 0,
-        "topics": [],
+        "notes_summary": [],
         "curr_question_valid": False,
         "messages": [],
         "__next__": ""
@@ -55,7 +54,7 @@ def test_autograder_with_submissions():
         {
             "title": "Add Two Numbers",
             "context": "Write a function that takes two integers as input and returns their sum.",
-            "topics": ["functions", "basic arithmetic"],
+            "notes_summary": ["functions", "basic arithmetic"],
             "question_type": "code",
             "sample_code": "def add_numbers(a, b):\n    return a + b",
             "autograder_script": "",
@@ -69,7 +68,7 @@ def test_autograder_with_submissions():
         {
             "title": "Reverse String",
             "context": "Write a function that takes a string as input and returns it reversed.",
-            "topics": ["strings", "algorithms"],
+            "notes_summary": ["strings", "algorithms"],
             "question_type": "code",
             "sample_code": "def reverse_string(text):\n    return text[::-1]",
             "autograder_script": "",
@@ -84,7 +83,7 @@ def test_autograder_with_submissions():
         {
             "title": "Find Maximum",
             "context": "Write a function that finds the maximum value in a list of integers.",
-            "topics": ["lists", "algorithms"],
+            "notes_summary": ["lists", "algorithms"],
             "question_type": "code",
             "sample_code": "def find_max(numbers):\n    return max(numbers)",
             "autograder_script": "",

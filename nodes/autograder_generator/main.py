@@ -3,7 +3,7 @@
 import os
 from dotenv import load_dotenv
 from state_types import State
-from nodes.autograder import build_autograder_node
+from nodes.autograder_generator.autograder import build_autograder_node
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -27,7 +27,7 @@ def main():
             {
                 "title": "Add Two Numbers",
                 "context": "Write a function that takes two integers as input and returns their sum.",
-                "topics": ["functions", "basic arithmetic"],
+                "notes_summary": ["functions", "basic arithmetic"],
                 "question_type": "code",
                 "sample_code": "def add_numbers(a, b):\n    return a + b",
                 "autograder_script": "",
@@ -39,7 +39,7 @@ def main():
         ],
         "num_questions": 1,
         "current_index": 0,
-        "topics": [],
+        "notes_summary": [],
         "curr_question_valid": False,
         "messages": [],
         "__next__": ""
