@@ -7,14 +7,14 @@ from langchain_core.language_models.chat_models import BaseChatModel
 import re
 
 from state_types import State
-from utils.language import detect_language
-from utils.io import format_io_pairs_as_python_list
-from utils.llm import extract_code
-from utils.state import get_current_question, set_current_question
+from .utils.language import detect_language
+from .utils.io import format_io_pairs_as_python_list
+from .utils.llm import extract_code
+from .utils.state import get_current_question, set_current_question
 
 
 # Load prompt from text file
-with open("autograder_prompt.txt", "r") as f:
+with open("prompts/autograder_prompt.txt", "r") as f:
     autograder_prompt = ChatPromptTemplate.from_template(f.read())
 
 

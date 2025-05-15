@@ -21,5 +21,5 @@ class State(TypedDict):
     current_index: int
     notes_summary: list[str]
     curr_question_valid: bool
-    messages: Annotated[list, lambda x: x]  # Replace with actual logic
+    messages: Annotated[list, lambda x: x]
     __next__: str
