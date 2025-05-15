@@ -19,22 +19,22 @@ def generate_questions(get_notes, get_syllabus):
 
     def summarizer(state: State):
         # Summarize the question and context
-        with open("summarizer_prompt.txt", "r") as f:
+        with open("prompts/summarizer_prompt.txt", "r") as f:
             prompt = f.read()
 
         messages = [
             SystemMessage(prompt),
-            HumanMessage(f"Here's the syllabus of my course {get_syllabus()}. \n"
-                         f"Here's my notes{get_notes()}"),
+            HumanMessage(f"Here's the syllabus of my course:\n{get_syllabus()}. \n\n"
+                         f"Here's my notes:\n{get_notes()}"),
         ]
 
         response = llm.invoke(messages)
 
         state["notes_summary"] = response.content
-        return {"messages": AIMessage("some additional comments about the notes_summary")}
+        return state
 
     def generator(state: State):
-        with open("summarizer_prompt.txt", "r") as f:
+        with open("prompts/quiz_generator.txt", "r", encoding='utf-8') as f:
             prompt = f.read()
 
         if not state["curr_question_valid"]:
@@ -51,7 +51,7 @@ def generate_questions(get_notes, get_syllabus):
 
             state["questions"][state["current_index"]] = question
             state["curr_question_valid"] = True
-            return {"messages": AIMessage(f"regenerated question {state['current_index']}")}
+            return state
         else:
             # generate all questions
             messages = [
@@ -62,7 +62,7 @@ def generate_questions(get_notes, get_syllabus):
             response = llm.invoke(messages)
             question = json.loads(response.content)
             state["questions"] = question
-            return {"messages": AIMessage("generated all questions")}
+            return state
 
     autograder_node = build_autograder_node(llm)
 
@@ -83,7 +83,7 @@ def generate_questions(get_notes, get_syllabus):
         "questions": [],
         "num_questions": 5,
         "current_index": 0,
-        "notes_summary": ["topic1", "topic2"],
+        "notes_summary": "",
         "curr_question_valid": True,
         "messages": [
         ]},

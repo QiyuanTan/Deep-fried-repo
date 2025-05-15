@@ -1,4 +1,5 @@
 from typing import TypedDict, Literal, Union, Annotated
+from langgraph.graph import add_messages
 
 class Question(TypedDict):
     title: str
@@ -19,7 +20,7 @@ class State(TypedDict):
     questions: list[Union[MCQ, CodeQuestion]]
     num_questions: int
     current_index: int
-    notes_summary: list[str]
+    notes_summary: str
     curr_question_valid: bool
-    messages: Annotated[list, lambda x: x]
+    messages: Annotated[list, add_messages]
     __next__: str

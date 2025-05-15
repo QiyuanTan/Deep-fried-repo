@@ -4,3 +4,4 @@ python-dotenv~=1.0.1
 langchain-community~=0.3.22
 langchain-core~=0.3.56
 langchain-experimental~=0.3.4
+pyjwt~=2.10.1
