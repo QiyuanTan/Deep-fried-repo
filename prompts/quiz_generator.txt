@@ -8,12 +8,15 @@ Schema:
 {
   "questions": [
     {
-      "type": "mcq" | "code",
-      "prompt": "string",
-      "options": ["string", ...],   // required for mcq only
-      "answer": "string",           // correct option label (e.g. "B") or code
-      "explanation": "string"       // brief rationale
-    }
+      "question_type": "mcq" | "code",
+      "title": "string",                   // question title
+      "content": "string",                 // prompt for the learner
+      "options": ["string", ...],          // required for mcq only
+      "correct_option": "string",          // correct option's content, not the choice but the content, for mcq only
+      "explanation": "string"              // brief rationale
+      "sample_code": "string",             // a complete answer, not the starter code, required for code only
+      "sample_input_output": "string",     // input-output pairs, required for code only
+    }, // more questions
   ]
 }
 
@@ -24,18 +27,19 @@ Guidelines
    - Coding Exercise (code)
 
 
-2. Each Multiple‑Choice question must offer 4–5 options labelled "A", "B", … with exactly one correct answer.
+2. Each Multiple‑Choice question must offer 4 options labelled "A", "B", … with exactly one correct answer.
 
-3. Each Coding question must include:
-   • a clear problem statement  
-   • starter code (if appropriate)  
-   • the expected behaviour or output  
-   • unit‑test style assertions or sample usage  
+3. Each Coding question's prompt (content) must include:
+   • The user will only see the prompt so you must ensure it is clear and complete. You must include all the following components in the prompt, do not only put them in the other fields
+   • a clear problem statement
+   • Function signature, class name, or starter code for the learner to complete
+   • the expected behaviour or output
 
 4. All content must be self‑contained, unambiguous, and at an appropriate difficulty for the target audience.
 
 Validation reminders
 --------------------
+- Do not include anything but the JSON. Do you wrap your answer in markdown or add any extra commentary.
 - Ensure the JSON is syntactically valid: no trailing commas, comments, or backticks.
 - Use double quotes for all keys and string values.
 - Escape any double quotes inside strings.

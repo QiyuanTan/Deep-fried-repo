@@ -4,7 +4,6 @@ from langgraph.graph import add_messages
 class Question(TypedDict):
     title: str
     context: str
-    topics: list[str]
     question_type: Literal["mcq", "code"]
 
 class MCQ(Question):
@@ -22,5 +21,5 @@ class State(TypedDict):
     current_index: int
     notes_summary: str
     curr_question_valid: bool
-    messages: Annotated[list, add_messages]
+    messages: list[str]
     __next__: str

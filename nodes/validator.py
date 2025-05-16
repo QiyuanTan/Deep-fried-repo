@@ -1,6 +1,8 @@
 import traceback
 from typing import Tuple
 from langchain_core.tools import tool
+from langgraph.constants import END
+
 
 def validateMCQs(question: dict) -> Tuple[bool, str]:
     options = question.get("options", [])
@@ -67,11 +69,12 @@ def validator(state: dict) -> dict:
 
     # Determine next node based on the question's validity
     if valid and index + 1 == state["num_questions"]:  # Last question, valid
-        state["__next__"] = "End"
+        state["__next__"] = END
     elif valid:  # Valid question, continue to the autograder
-        state["__next__"] = "Autograder"
+        state["__next__"] = "autograder_generator"
+        state["current_index"] += 1
     else:  # Invalid question, regenerate the question
-        state["__next__"] = "Generator"
+        state["__next__"] = "generator"
 
     # Add validation message for logging/debugging
     state["messages"].append(f"Question {index} validation result: {message}")

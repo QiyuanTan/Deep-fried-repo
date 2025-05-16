@@ -13,7 +13,7 @@ from state_types import State
 load_dotenv()
 llm = get_llm()
 
-def generate_questions(get_notes, get_syllabus):
+def generate_questions(notes, syllabus):
 
     graph_builder = StateGraph(State)
 
@@ -24,8 +24,9 @@ def generate_questions(get_notes, get_syllabus):
 
         messages = [
             SystemMessage(prompt),
-            HumanMessage(f"Here's the syllabus of my course:\n{get_syllabus()}. \n\n"
-                         f"Here's my notes:\n{get_notes()}"),
+            HumanMessage(f"Please generate {state['num_questions']} questions for me. \n"
+                         f"Here's the syllabus of my course:\n{syllabus}. \n\n"
+                         f"Here's my notes:\n{notes}"),
         ]
 
         response = llm.invoke(messages)
@@ -44,13 +45,14 @@ def generate_questions(get_notes, get_syllabus):
                 HumanMessage(state["notes_summary"]),
                 AIMessage(state["questions"]),
                 SystemMessage(f"One of questions you generated is invalid. You need to regenerate it and format it as the following format:" # TODO: json format
-                              f". Here's the message form the validator: {state['messages'][-1].content}"),
+                              f". Here's the message form the validator: {state['messages'][-1]}"),
             ]
             response = llm.invoke(messages)
             question = json.loads(response.content)
 
             state["questions"][state["current_index"]] = question
             state["curr_question_valid"] = True
+            state["messages"] = state["messages"] + [f"regenerated question {state['current_index']}: {question}"]
             return state
         else:
             # generate all questions
@@ -61,7 +63,8 @@ def generate_questions(get_notes, get_syllabus):
 
             response = llm.invoke(messages)
             question = json.loads(response.content)
-            state["questions"] = question
+            state["questions"] = question["questions"]
+            state["messages"] = state["messages"] + [f"generated questions: {question}"]
             return state
 
     autograder_node = build_autograder_node(llm)
@@ -90,14 +93,18 @@ def generate_questions(get_notes, get_syllabus):
         {"recursion_limit": 1000})
 
     for message in final_state['messages']:
-        print(message.content)
+        print(message)
 
     return final_state["questions"]
 
 if __name__ == "__main__":
-    def get_notes():
-        return "1 + 1 = 2"
-    def get_syllabus():
-        return "elementary math"
+    # notes = "lecture 1:\n 1 + 1 = 2 \n2 + 2 = 4\n3 + 3 = 6 addition is fun!"
+    # syllabus = "Course on basic math\nTopics: addition, subtraction, multiplication, division\n"
+    syllabus = "Recursion and Dynamic Programming\nTopics: Fibonacci sequence, factorial calculation, memoization\n"
+    notes = "Lecture 1: Recursion basics\n- Fibonacci sequence\n- Factorial calculation\n- Memoization techniques\n\nLecture 2: Dynamic Programming\n- Coin change problem\n- Longest common subsequence\n- Knapsack problem\n"
 
-    questions = generate_questions(get_notes, get_syllabus)
+    questions = generate_questions(notes, syllabus)
+
+    print("Generated Questions:")
+    for question in questions:
+        print(question)
