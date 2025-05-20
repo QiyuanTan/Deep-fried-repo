@@ -43,7 +43,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
             "title": question["title"],
             "context": question["context"],
             "sample_code": question["sample_code"],
-            "sample_input_outputs": question["sample_input_output"]
+            "sample_input_output": question["sample_input_output"]
         }
 
         # 3. Run the chain (Prompt | LLM)
