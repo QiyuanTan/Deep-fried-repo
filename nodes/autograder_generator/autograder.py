@@ -41,7 +41,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
             "language": lang,
             "ext": ext,
             "title": question["title"],
-            "context": question["content"],
+            "context": question["context"],
             "sample_code": question["sample_code"],
             "sample_input_outputs": question["sample_input_output"]
         }
