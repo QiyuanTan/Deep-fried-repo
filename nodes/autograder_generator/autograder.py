@@ -1,20 +1,17 @@
 # nodes/autograder.py
 
-from typing import Callable
-from langchain_core.runnables import RunnableLambda
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.language_models.chat_models import BaseChatModel
 import re
 
-from state_types import State
-from utils.language import detect_language
-from utils.io import format_io_pairs_as_python_list
-from utils.llm import extract_code
-from utils.state import get_current_question, set_current_question
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
 
+from state_types import State
+from .utils.language import detect_language
+from .utils.llm import extract_code
 
 # Load prompt from text file
-with open("prompts/autograder_prompt.txt", "r") as f:
+with open("prompts/autograder_prompt_old.txt", "r") as f:
     autograder_prompt = ChatPromptTemplate.from_template(f.read())
 
 
@@ -24,6 +21,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
         question = state["questions"][index]
 
         if question["question_type"] != "code":
+            state["messages"].append(f"Skipping autograder generation for question {index} of type {question['question_type']}.")
             return state  # Skip MCQs
 
         # 1. Detect programming language and extension
@@ -37,7 +35,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
         }.get(lang, "txt")
 
         # 2. Prepare inputs
-        from utils.io import format_io_pairs_as_python_list
+        from .utils.io import format_io_pairs_as_python_list
 
         input_values = {
             "language": lang,
@@ -45,7 +43,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
             "title": question["title"],
             "context": question["context"],
             "sample_code": question["sample_code"],
-            "formatted_io": format_io_pairs_as_python_list(question["sample_input_output"])
+            "sample_input_output": question["sample_input_output"]
         }
 
         # 3. Run the chain (Prompt | LLM)
@@ -67,6 +65,7 @@ def build_autograder_node(llm: BaseChatModel) -> RunnableLambda:
         # 6. Save to state
         question["autograder_script"] = autograder_script
         state["questions"][index] = question
+        state["messages"].append(f"Generated autograder script for question {index}: {autograder_script}")
 
         return state
 

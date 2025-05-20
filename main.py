@@ -1,134 +1,150 @@
-import random
-from typing import TypedDict, Annotated, Union, Literal
+import json
+import re
 
-from langchain_experimental.tools.python.tool import PythonREPLTool
-from langchain_community.tools.tavily_search.tool import TavilySearchResults
-
-from langchain_community.chat_models import ChatZhipuAI
+from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-import os
+from langgraph.constants import START
+from langgraph.graph import StateGraph
 
-from langgraph.constants import START, END
-from langgraph.graph import add_messages, StateGraph
+from llm import get_llm
+from nodes.validator import validator
+from state_types import State
 
-class Question(TypedDict):
-    title: str
-    context: str
-    topics: list[str]
-    question_type: Literal["mcq", "code"]
+load_dotenv()
+llm = get_llm()
 
-class MCQ(Question):
-    options: list[str]
-    correct_option: str
+def clean_autograder_script(raw_output: str) -> str:
+    """
+    Cleans model output by stripping any markdown formatting.
+    Assumes model may wrap the script in ```python ... ```
+    """
+    match = re.search(r"```(?:python)?\n([\s\S]*?)```", raw_output.strip())
+    return match.group(1).strip() if match else raw_output.strip()
 
-class CodeQuestion(Question):
-    sample_code: str
-    autograder_script: str
-    sample_input_output: list[tuple[str, str]]
 
-class State(TypedDict):
-    questions: list[Union[MCQ, CodeQuestion]]
-    num_questions: int
-    current_index: int
-    topics: list[str]
-    curr_question_valid: bool
-    messages: Annotated[list, add_messages]
-    __next__: str
+def generate_questions(notes, syllabus):
 
-graph_builder = StateGraph(State)
+    graph_builder = StateGraph(State)
 
-def summarizer(state: State):
-    state["topics"] = ["topic1", "topic2"]
-    return {"messages": AIMessage("some additional comments about the topics")}
+    def summarizer(state: State):
+        # Summarize the question and context
+        with open("prompts/summarizer_prompt.txt", "r", encoding='utf-8') as f:
+            prompt = f.read()
 
-def generator(state: State):
-    if not state["curr_question_valid"]:
-        # regenerate the question
-        state["questions"][state["current_index"]] = {
-            "title": "New Question",
-            "context": "New Context",
-            "topics": ["topic1", "topic2"],
-            "question_type": "mcq",
-            "options": ["Option A", "Option B"],
-            "correct_option": "Option A"
-        }
+        messages = [
+            SystemMessage(prompt),
+            HumanMessage(f"Here's the syllabus of my course:\n{syllabus}. \n\n"
+                         f"Here's my notes:\n{notes}"),
+        ]
 
-        state["curr_question_valid"] = True
-        return {"messages": AIMessage(f"regenerated question {state['current_index']}")}
-    else:
-        # generate all questions
-        for i in range(state["num_questions"]):
-            state["questions"].append({
-                "title": f"Question {i}",
-                "context": f"Context for question {i}",
-                "topics": state["topics"],
-                "question_type": "mcq",
-                "options": ["Option A", "Option B"],
-                "correct_option": "Option A"
-            })
+        response = llm.invoke(messages, temperature=0.2)
 
-        state["questions"].append({
-            "title": f"Question ",
-            "context": f"Context for question",
-            "topics": state["topics"],
-            "question_type": "code",
-            "sample_code": "print('Hello World')",
-            "autograder_script": "",
-            "sample_input_output": []
-        })
-        return {"messages": AIMessage("generated all questions")}
+        state["notes_summary"] = response.content
+        return state
 
-def autograder_generator(state: State):
-    if state["questions"][state["current_index"]]["question_type"] == "code":
-        question: CodeQuestion = state["questions"][state["current_index"]]
-        question["autograder_script"] = "autograder script"
-        question["sample_input_output"] = [("input", "output"), ("input", "output")]
-        return {"messages": AIMessage(f"generated autograder for question {state['current_index']}")}
-    else:
-        return {"messages": AIMessage(f"no autograder needed for question {state['current_index']}")}
+    def generator(state: State):
+        with open("prompts/quiz_generator.txt", "r", encoding='utf-8') as f:
+            prompt = f.read()
 
-def validator(state: State):
-    # question = state["questions"][state["current_index"]]
-    # if question["question_type"] == "mcq":
-    #     state["curr_question_valid"] = True
-    # elif question["question_type"] == "code":
-    #     state["curr_question_valid"] = True
-    # else:
-    #     state["curr_question_valid"] = False
-    state["curr_question_valid"] = random.random() > 0.5
-    if not state["curr_question_valid"]:
-        state["__next__"] = "generator"
-    else:
-        state["__next__"] = "autograder_generator"
-        state["current_index"] = state["current_index"] + 1
-    if not state["current_index"] < len(state["questions"]):
-        state["__next__"] = END
+        if not state["curr_question_valid"]:
+            # regenerate a single question
+            messages = [
+                SystemMessage(prompt),
+                HumanMessage(state["notes_summary"]),
+                AIMessage(json.dumps(state["questions"])),
+                SystemMessage(
+                    f"The question at index {state['current_index']} is invalid. "
+                    f"Regenerate **only this question**, and return it as a single JSON object (not a list). "
+                    f"Follow the exact schema provided earlier. Do not include explanations, markdown, or formatting."
+                ),
+                HumanMessage(f"Here is the validator feedback: {state['messages'][-1]}")
+            ]
+            response = llm.invoke(messages, temperature=0.4)
+            question = json.loads(response.content)
 
-    state["messages"].append(AIMessage(content=f"validated question {state['current_index'] - (1 if state['curr_question_valid'] else 0)}, valid: {state['curr_question_valid']}"))
+            state["questions"][state["current_index"]] = question
+            state["curr_question_valid"] = True
+            state["messages"].append(f"regenerated question {state['current_index']}: {question}")
+            return state
+        else:
+            # generate all questions
+            messages = [
+                SystemMessage(prompt),
+                SystemMessage(f"The summary of notes and syllabus is as follows: {state['notes_summary']}"),
+                HumanMessage(f"Please generate {state['num_questions']} questions for me."),
+            ]
 
-    return state
+            response = llm.invoke(messages, temperature=0.55, max_tokens=1800*state["num_questions"])
+            question = json.loads(response.content)
+            state["questions"] = question["questions"]
+            state["messages"].append(f"generated questions: {question}")
+            return state
 
-graph_builder.add_node("summarizer", summarizer)
-graph_builder.add_node("generator", generator)
-graph_builder.add_node("autograder_generator", autograder_generator)
-graph_builder.add_node("validator", validator)
+    def autograder(state: State):
+        index = state["current_index"]
+        question = state["questions"][index]
 
-graph_builder.add_edge(START, "summarizer")
-graph_builder.add_edge("summarizer", "generator")
-graph_builder.add_edge("generator", "autograder_generator")
-graph_builder.add_edge("autograder_generator", "validator")
-graph_builder.add_conditional_edges("validator", lambda state: state["__next__"])
+        if question["question_type"] != "code":
+            state["messages"].append(f"Skipping autograder generation for question {index} of type {question['question_type']}.")
+            return state  # Skip MCQs
 
-graph = graph_builder.compile()
+        with open("prompts/autograder_prompt.txt", "r") as f:
+            prompt = f.read()
 
-final_state = graph.invoke({
-    "questions": [],
-    "num_questions": 5,
-    "current_index": 0,
-    "topics": ["topic1", "topic2"],
-    "curr_question_valid": True,
-    "messages": [
-    ]},
-    {"recursion_limit": 1000})
-for message in final_state['messages']:
-    print(message.content)
+        messages = [
+            SystemMessage(prompt),
+            HumanMessage(f"Here's the question you need to generate an autograder for:\n{json.dumps(question)}\n"),
+        ]
+
+        if not state["curr_question_valid"]:
+            messages.append(AIMessage(json.dumps(state["questions"][index]["autograder_script"])))
+            messages.append(SystemMessage(f"The question at index {index} is invalid. "))
+            messages.append(HumanMessage(f"Here is the validator's feedback: {state['messages'][-1]}"))
+
+        response = llm.invoke(messages, temperature=0.3)
+        response = clean_autograder_script(response.content)
+        question["autograder_script"] = response
+
+        state["messages"].append(f"generated autograder script for question {index}")
+
+        return  state
+
+    graph_builder.add_node("summarizer", summarizer)
+    graph_builder.add_node("generator", generator)
+    graph_builder.add_node("autograder_generator", autograder)
+    graph_builder.add_node("validator", validator)
+
+    graph_builder.add_edge(START, "summarizer")
+    graph_builder.add_edge("summarizer", "generator")
+    graph_builder.add_edge("generator", "autograder_generator")
+    graph_builder.add_edge("autograder_generator", "validator")
+    graph_builder.add_conditional_edges("validator", lambda state: state["__next__"])
+
+    graph = graph_builder.compile()
+
+    final_state = graph.invoke({
+        "questions": [],
+        "num_questions": 5,
+        "current_index": 0,
+        "notes_summary": "",
+        "curr_question_valid": True,
+        "messages": [
+        ]},
+        {"recursion_limit": 1000})
+
+    for message in final_state['messages']:
+        print(message)
+
+    return final_state["questions"]
+
+if __name__ == "__main__":
+    # notes = "lecture 1:\n 1 + 1 = 2 \n2 + 2 = 4\n3 + 3 = 6 addition is fun!"
+    # syllabus = "Course on basic math\nTopics: addition, subtraction, multiplication, division\n"
+    syllabus = "Recursion and Dynamic Programming\nTopics: Fibonacci sequence, factorial calculation, memoization\n"
+    notes = "Lecture 1: Recursion basics\n- Fibonacci sequence\n- Factorial calculation\n- Memoization techniques\n\nLecture 2: Dynamic Programming\n- Coin change problem\n- Longest common subsequence\n- Knapsack problem\n"
+
+    questions = generate_questions(notes, syllabus)
+
+    print("Generated Questions:")
+    for question in questions:
+        print(question)
