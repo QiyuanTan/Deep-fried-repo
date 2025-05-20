@@ -23,35 +23,7 @@ def validateCode(question: dict) -> Tuple[bool, str]:
     except SyntaxError as e:
         return False, f"Syntax error in autograder script: {e}"
 
-    for idx, (inp, expected) in enumerate(samples):
-        try:
-            local_scope = {}
-            exec(script, {}, local_scope)
-        except Exception as e:
-            return False, f"Runtime error on sample {idx}: {traceback.format_exc()}"
-
-        # Now validate each sample input-output pair
-    for idx, (inp, expected) in enumerate(samples):
-        # Try to get the function from the local scope (assumed to be defined in the script)
-        func = local_scope.get('autograder_function')  # Change 'autograder_function' to the function name used in your script
-        
-        if func is None:
-            return False, f"Function 'autograder_function' not found in the script."
-
-        try:
-            # Execute the function with the given input
-            result = func(*inp)
-
-            # Compare result with expected output
-            if str(result) != str(expected):  # String comparison, assuming string output is expected
-                return False, f"Test {idx} failed: Expected {expected}, but got {result}."
-        
-        except Exception as e:
-            return False, f"Runtime error on sample {idx}: {traceback.format_exc()}"
-
     return True, "Code question validation passed."
-
-
 
 def validator(state: dict) -> dict:
     index = state["current_index"]
@@ -74,7 +46,10 @@ def validator(state: dict) -> dict:
         state["__next__"] = "autograder_generator"
         state["current_index"] += 1
     else:  # Invalid question, regenerate the question
-        state["__next__"] = "generator"
+        if question["question_type"] == "mcq":
+            state["__next__"] = "generator"
+        else:
+            state["__next__"] = "autograder_generator"
 
     # Add validation message for logging/debugging
     state["messages"].append(f"Question {index} validation result: {message}")

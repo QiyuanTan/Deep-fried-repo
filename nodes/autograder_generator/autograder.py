@@ -11,7 +11,7 @@ from .utils.language import detect_language
 from .utils.llm import extract_code
 
 # Load prompt from text file
-with open("prompts/autograder_prompt.txt", "r") as f:
+with open("prompts/autograder_prompt_old.txt", "r") as f:
     autograder_prompt = ChatPromptTemplate.from_template(f.read())
 
 
