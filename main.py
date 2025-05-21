@@ -130,7 +130,7 @@ def generate_questions(notes, syllabus):
         "curr_question_valid": True,
         "messages": [
         ]},
-        {"recursion_limit": 1000})
+        {"recursion_limit": 15})
 
     for message in final_state['messages']:
         print(message)
