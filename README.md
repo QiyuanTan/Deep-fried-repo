@@ -65,7 +65,8 @@ flowchart TD
     Autograder --> Validator
 
     Validator -- "Valid<br>Generate Next Autograder" --> Autograder
-    Validator -- "Invalid<br>Regenerate Single Question" --> Generator
+    Validator -- "MCQ Invalid<br>Regenerate Single Question" --> Generator
+    Validator -- "Autograder Invalid<br>Regenerate Single Question" --> Autograder
     Validator -- "Complete" --> END
 
 ```
